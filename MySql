@@ -1,1 +1,138 @@
+use production;
+select*from hr;
+select birthdate from hr;
+set sql_safe_updates=0;
+UPDATE hr 
+SET birthdate = CASE 
+    WHEN birthdate LIKE '%/%' THEN DATE_FORMAT(STR_TO_DATE(birthdate, '%m/%d/%Y'), '%Y-%m-%d') 
+    WHEN birthdate LIKE '%-%' THEN DATE_FORMAT(STR_TO_DATE(birthdate, '%m-%d-%Y'), '%Y-%m-%d') 
+    ELSE NULL 
+END;
+describe hr;
+update hr
+SET hire_date = CASE 
+    WHEN hire_date LIKE '%/%' THEN DATE_FORMAT(STR_TO_DATE(hire_date, '%m/%d/%Y'), '%Y-%m-%d') 
+    WHEN hire_date LIKE '%-%' THEN DATE_FORMAT(STR_TO_DATE(hire_date, '%m-%d-%Y'), '%Y-%m-%d') 
+    ELSE NULL 
+END;
+set sql_safe_updates=0;
+update hr
+set termdate = date(str_to_date(termdate,'%Y-%m-%d %H:%i:%s UTC'))
+where termdate is not null and termdate!= '';
+select termdate from hr;
+select *from hr;
+
+    
+alter table hr
+modify column termdate date;
+
+alter table hr add column age int;
+update hr
+set age=timestampdiff(year,birthdate,curdate());
+select*from hr;
+select
+min(age) as youngest,
+max(age)as oldest
+from hr;
+select count(*)from hr where age<18;
+select gender,count(*)as count
+from hr
+where age>18 and termdate=''
+group by gender;
+select race,count(*)as count
+from hr
+where age>=18 and termdate=''
+group by race
+order by count(*)desc;
+select
+min(age) as youngest
+from hr 
+where age>=18 and termdate='';
+select
+max(age) as oldest
+from hr 
+where age>=18 and termdate='';
+select
+   case
+     when age>=18 and age<=24 then '18-24'
+     when age>=25 and age<=34 then '25-34'
+     when age>=35 and age<=44 then '35-44'
+     when age>=45 and age<=54 then '45-54'
+     when age>=55 and age<=64 then '55-64'
+     else'65+'
+end as age_group,gender,
+count(*)as count
+from hr
+where age>=18 and termdate=''
+group by age_group,gender
+order by age_group,gender;
+
+select location,count(*)as count
+from hr
+where age>=18 and termdate=''
+group by location;
+-- 5. what is the average length of employment for employees who have been terminated?
+select
+   round(avg(datediff(termdate,hire_date))/365,0) as avg_length_employment
+from hr
+where termdate<=curdate()and termdate<>''and age>=18;
+
+-- how does the gender distribution vary across department and job titles?
+select  department,gender,count(*)as count
+from hr
+where age>=18 and termdate=''
+group by department,gender
+order by department,gender;
+-- what is the distribution of job titles across the company?
+select jobtitle,count(*)as count
+from hr
+where age>=18 and termdate=''
+group by jobtitle
+order by jobtitle desc;
+-- which department has thee highest turnover rate?
+select department,
+  total_count,
+  terminated_count,
+  terminated_count/total_count as termination_rate
+from(
+  select department,
+  count(*)as total_count,
+  sum(case when termdate<>'' and termdate<curdate()then 1 else 0 end)as terminated_count
+  from hr
+  where age>=18
+  group by department
+  )as subsquery
+  order by termination_rate desc;
+  -- what is the distribution of employees across locations by city and sate?
+select location_state,count(*)as count
+from hr
+where age>=18 and termdate=''
+group by location_state
+order by count desc;
+
+-- how has the company employee count changed over time base on hire and term date?
+select 
+  year,
+  hires,
+  terminations,
+  hires-terminations as net_change,
+  round((hires-terminations)/hires*100,2)as net_change_percent
+from(
+	select
+    year(hire_date)as year,
+    count(*)as hires,
+    sum(case when termdate <>'' and termdate<=curdate()then 1 else 0 end)as terminations
+    from hr
+    where age>=18
+    group by year(hire_date)
+    )as subquery
+order by year asc;
+
+-- what is the tenure distribution for each department
+select department,round(avg(datediff(termdate,hire_date)/365),0)as avg_tenure
+from hr
+where termdate<=curdate()and termdate<>'' and age>=18
+group by department;
+
+
 
